@@ -11,7 +11,7 @@ cache_get(function_name, function_call, cache)
 
 \item{function_call}{function call to retrieve against}
 
-\item{cache}{Cache object}
+\item{cache}{a Cache object}
 }
 \value{
 the result of evaluating \code{function_call} (either directly or

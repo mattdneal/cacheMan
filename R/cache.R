@@ -3,10 +3,11 @@ cache_class <- "Cache"
 #' Create an empty cache
 #'
 #' @param function_cache_size number of results to store for each cached
-#' function
-#' @param hash_algo
+#' function. When this limit is reached, new entries in the cache will
+#' overwrite the oldest entry for the relevant function.
+#' @param hash_algo the hash algorithm to use.
 #'
-#' @return a cache
+#' @return a Cache object
 #' @export
 #' @importFrom hash hash
 #'
@@ -49,7 +50,7 @@ elapsed_time <- function(start_time) {
 #'
 #' @param function_name function to retrieve against
 #' @param function_call function call to retrieve against
-#' @param cache Cache object
+#' @param cache a Cache object
 #'
 #' @return the result of evaluating \code{function_call} (either directly or
 #' from the cache)

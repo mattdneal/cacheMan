@@ -8,12 +8,13 @@ create_cache(function_cache_size = 1, hash_algo = "crc32")
 }
 \arguments{
 \item{function_cache_size}{number of results to store for each cached
-function}
+function. When this limit is reached, new entries in the cache will
+overwrite the oldest entry for the relevant function.}
 
-\item{hash_algo}{}
+\item{hash_algo}{the hash algorithm to use.}
 }
 \value{
-a cache
+a Cache object
 }
 \description{
 Create an empty cache
