@@ -1,0 +1,16 @@
+Package: cacheMan
+Type: Package
+Title: In-Memory Function Call Caching
+Version: 0.1.0
+Author: Matthew Neal
+Maintainer: Matthew Neal <mattdneal@gmail.com>
+Description: cacheMan makes it simple to cache and retrieve the output of
+    long-running functions in memory. Caches are passed between functions as a
+    Cache object, so side-effects of function execution can be confined to the
+    Cache object, without the need to set any global caching variables.
+License: MIT
+Imports:
+    hash,
+    digest
+LazyData: TRUE
+RoxygenNote: 5.0.1
