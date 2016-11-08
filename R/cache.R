@@ -1,4 +1,5 @@
 cache_class <- "Cache"
+hash_attr <- "cacheManHash"
 
 #' Create an empty cache
 #'
@@ -23,6 +24,16 @@ create_cache <- function(function_cache_size=1, hash_algo="crc32") {
   return(cache)
 }
 
+#' Set an entry in the cache
+#'
+#' @param function_name function_name to set against
+#' @param arg_hash the hash of the arguments
+#' @param result the result to cache
+#' @param cache the Cache object to cache it in
+#'
+#' @return NULL
+#'
+#' @importFrom hash del
 cache_set <- function(function_name, arg_hash, result, cache) {
   hash_slot <- cache$function_cache[[function_name]][["next_hash_slot"]]
   num_slots <- cache$cache_size
@@ -31,6 +42,7 @@ cache_set <- function(function_name, arg_hash, result, cache) {
 
   if (nchar(hash_to_delete) > 0) {
     del(hash_to_delete, cache$function_cache[[function_name]])
+    del(hash_to_delete, cache$function_cache[[function_name]][["hash_cost"]])
   }
 
   cache$function_cache[[function_name]][["hashes"]][hash_slot] <- arg_hash
@@ -56,6 +68,7 @@ elapsed_time <- function(start_time) {
 #' from the cache)
 #'
 #' @importFrom digest digest
+#' @importFrom hash has.key hash
 #'
 cache_get <- function(function_name, function_call, cache) {
 
@@ -63,7 +76,14 @@ cache_get <- function(function_name, function_call, cache) {
 
   function_args <-  as.list(function_call)[-1]
   if ("cache" %in% names(function_args)) {
-    function_args[-which(names(function_args)=="cache")]
+    function_args <- function_args[-which(names(function_args)=="cache")]
+  }
+
+  # Replace any arguments which have a hash attribute set with their hash attribute.
+  for (arg_name in names(function_args)) {
+    if(!is.null(attr(function_args[[arg_name]], hash_attr, exact=T))) {
+      function_args[[arg_name]] <- attr(function_args[[arg_name]], hash_attr, exact=T)
+    }
   }
 
   algo <- cache$hash_algo
@@ -79,41 +99,64 @@ cache_get <- function(function_name, function_call, cache) {
     cache$function_cache[[function_name]][["next_hash_slot"]] <- 1
 
     # Set up some trackers
+    cache$function_cache[[function_name]][["hash_cost"]] <- hash()
     cache$function_cache[[function_name]][["cache_hits"]] <- 0
     cache$function_cache[[function_name]][["cache_misses"]] <- 0
     cache$function_cache[[function_name]][["cache_hit_time"]] <- 0
     cache$function_cache[[function_name]][["cache_miss_time"]] <- 0
+    cache$function_cache[[function_name]][["function_call_time"]] <- 0
+    cache$function_cache[[function_name]][["time_saved"]] <- 0
+  }
+
+
+  if (has.key(arg_hash, cache$function_cache[[function_name]])) {
+    # Cache hit
+    result <- cache$function_cache[[function_name]][[arg_hash]]
+
+    cache$function_cache[[function_name]][["cache_hits"]] <-
+      cache$function_cache[[function_name]][["cache_hits"]] + 1
+
+    cache$function_cache[[function_name]][["cache_hit_time"]] <-
+      cache$function_cache[[function_name]][["cache_hit_time"]] +
+      elapsed_time(start_time)
+
+    cache$function_cache[[function_name]][["time_saved"]] <-
+      cache$function_cache[[function_name]][["time_saved"]] +
+      cache$function_cache[[function_name]][["hash_cost"]][[arg_hash]]
+  } else {
+    # Cache miss
+
+    cache$function_cache[[function_name]][["cache_misses"]] <-
+      cache$function_cache[[function_name]][["cache_misses"]] + 1
+
+    cache$function_cache[[function_name]][["cache_miss_time"]] <-
+      cache$function_cache[[function_name]][["cache_miss_time"]] +
+      elapsed_time(start_time)
+
+    start_time <- proc.time()[[3]]
 
     result <- eval(function_call)
 
+    single_function_call_time <- elapsed_time(start_time)
+
+    cache$function_cache[[function_name]][["hash_cost"]][[arg_hash]] <-
+      single_function_call_time
+
+    cache$function_cache[[function_name]][["function_call_time"]] <-
+      cache$function_cache[[function_name]][["function_call_time"]] +
+      single_function_call_time
+
+
+    start_time <- proc.time()[[3]]
+
     cache_set(function_name, arg_hash, result, cache)
 
-  } else {
-    #We've got something cached for this function
+    cache$function_cache[[function_name]][["cache_miss_time"]] <-
+      cache$function_cache[[function_name]][["cache_miss_time"]] +
+      elapsed_time(start_time)
 
-    if (has.key(arg_hash, cache$function_cache[[function_name]])) {
-      # Cache hit
-      result <- cache$function_cache[[function_name]][[arg_hash]]
-
-      cache$function_cache[[function_name]][["cache_hits"]] <-
-        cache$function_cache[[function_name]][["cache_hits"]] + 1
-
-      cache$function_cache[[function_name]][["cache_hit_time"]] <-
-        cache$function_cache[[function_name]][["cache_hit_time"]] +
-        elapsed_time(start_time)
-    } else {
-      # Cache miss
-      result <- eval(function_call)
-      cache_set(function_name, arg_hash, result, cache)
-
-      cache$function_cache[[function_name]][["cache_misses"]] <-
-        cache$function_cache[[function_name]][["cache_misses"]] + 1
-
-      cache$function_cache[[function_name]][["cache_miss_time"]] <-
-        cache$function_cache[[function_name]][["cache_miss_time"]] +
-        elapsed_time(start_time)
-    }
   }
+
   return(result)
 }
 
